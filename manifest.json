@@ -1,0 +1,12 @@
+{
+	"id": "link-icon",
+	"name": "Link Icon",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Adds Lucide icons to internal wiki-links based on folder path",
+	"author": "",
+	"authorUrl": "",
+	"fundingUrl": "",
+	"isDesktopOnly": false
+}
+
