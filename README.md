@@ -1,5 +1,7 @@
 # Link Icon Plugin
 
+> **Note:** This plugin was generated and debugged entirely by [Cursor AI](https://cursor.sh/) by a user with no coding experience. It demonstrates the power of AI-assisted development to create fully functional software.
+
 An Obsidian plugin that adds Lucide icons to internal wiki-links based on the folder path of the linked file.
 
 ## Features
