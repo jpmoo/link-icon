@@ -3,7 +3,7 @@
 	"name": "Link Icon",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Adds Lucide icons to internal wiki-links based on folder path",
+	"description": "Adds Lucide icons to internal wiki-links based on folder path. Works in both Reading View and Live Preview. Features per-folder icon and color customization.",
 	"author": "jpmoo",
 	"authorUrl": "https://github.com/jpmoo",
 	"fundingUrl": "",
