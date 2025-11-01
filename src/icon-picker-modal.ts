@@ -69,6 +69,15 @@ export class IconPickerModal extends Modal {
 		contentEl.empty();
 	}
 
+	/**
+	 * Get a Lucide icon by key with type safety
+	 */
+	private getLucideIcon(key: string): unknown {
+		// Use Record type for safer access than 'as any'
+		const icons = LucideIcons as Record<string, unknown>;
+		return icons[key] || null;
+	}
+
 	private getAllAvailableIcons(): void {
 		// Get all exported icons from Lucide
 		// Lucide exports icons with PascalCase names
@@ -87,7 +96,7 @@ export class IconPickerModal extends Modal {
 			if (excludedKeys.includes(key)) return;
 			if (key.startsWith("_")) return;
 			
-			const icon = (LucideIcons as any)[key];
+			const icon = this.getLucideIcon(key);
 			// Icons are arrays with path data: ['path', { d: '...', ... }, ...]
 			if (Array.isArray(icon) && icon.length > 0) {
 				// Convert PascalCase to kebab-case
@@ -135,7 +144,7 @@ export class IconPickerModal extends Modal {
 			try {
 				// Use the stored PascalCase name
 				const pascalKey = this.iconMap.get(iconName) || this.toPascalCase(iconName);
-				const Icon = (LucideIcons as any)[pascalKey];
+				const Icon = this.getLucideIcon(pascalKey);
 				
 				if (Icon) {
 					const svg = this.createIconPreview(Icon, iconName);
@@ -165,7 +174,7 @@ export class IconPickerModal extends Modal {
 		});
 	}
 
-	private createIconPreview(Icon: any, iconName: string): SVGElement | null {
+	private createIconPreview(Icon: unknown, iconName: string): SVGElement | null {
 		try {
 			if (!Array.isArray(Icon)) {
 				return null;
@@ -196,7 +205,7 @@ export class IconPickerModal extends Modal {
 				
 				// Process children array (element 2)
 				const children = Icon[2];
-				children.forEach((child: any) => {
+				children.forEach((child: unknown) => {
 					if (Array.isArray(child) && child.length >= 2) {
 						const tagName = child[0];
 						const attrs = child[1];
@@ -206,7 +215,7 @@ export class IconPickerModal extends Modal {
 			}
 			// Fallback: Try array of arrays [['path', { d: '...' }], ['path', { d: '...' }]]
 			else if (Icon.length > 0 && Array.isArray(Icon[0])) {
-				Icon.forEach((item: any) => {
+				Icon.forEach((item: unknown) => {
 					if (Array.isArray(item) && item.length >= 2) {
 						const tagName = item[0];
 						const attrs = item[1];
@@ -239,78 +248,101 @@ export class IconPickerModal extends Modal {
 		return null;
 	}
 	
-	private createSvgElement(svg: SVGSVGElement, tagName: string, attrs: any): void {
+	private createSvgElement(svg: SVGSVGElement, tagName: string, attrs: Record<string, unknown>): void {
 		if (!tagName || !attrs) return;
 		
 		if (tagName === "path") {
 			const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-			if (attrs.d) {
-				path.setAttribute("d", attrs.d);
+			const dValue = attrs.d;
+			if (typeof dValue === "string") {
+				path.setAttribute("d", dValue);
 			}
-			if (attrs.fill) {
-				path.setAttribute("fill", attrs.fill);
+			const fillValue = attrs.fill;
+			if (typeof fillValue === "string") {
+				path.setAttribute("fill", fillValue);
 			}
 			svg.appendChild(path);
 		} else if (tagName === "circle") {
 			const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 			Object.keys(attrs).forEach(key => {
-				circle.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					circle.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(circle);
 		} else if (tagName === "line") {
 			const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 			Object.keys(attrs).forEach(key => {
-				line.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					line.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(line);
 		} else if (tagName === "polyline") {
 			const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
 			Object.keys(attrs).forEach(key => {
-				polyline.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					polyline.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(polyline);
 		} else if (tagName === "rect") {
 			const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 			Object.keys(attrs).forEach(key => {
-				rect.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					rect.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(rect);
 		}
 	}
 	
-	private addChildrenToSvg(svg: SVGSVGElement, children: any[]): void {
-		children.forEach((child: any) => {
-			if (!child) return;
+	private addChildrenToSvg(svg: SVGSVGElement, children: unknown[]): void {
+		children.forEach((child: unknown) => {
+			if (!child || typeof child !== "object") return;
 			
-			const tagName = child.tag || child.type || (child.$$typeof ? "react-element" : null);
-			const attrs = child.attrs || child.props || child.attributes || {};
+			const childObj = child as Record<string, unknown>;
+			const tagName = (childObj.tag || childObj.type || (childObj.$$typeof ? "react-element" : null)) as string | null;
+			const attrs = (childObj.attrs || childObj.props || childObj.attributes || {}) as Record<string, unknown>;
 			
-			if (tagName === "path" || (child.$$typeof && child.type === "path")) {
+			if (tagName === "path" || (childObj.$$typeof && childObj.type === "path")) {
 				const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-				if (attrs.d) {
-					path.setAttribute("d", attrs.d);
+				const dValue = attrs.d;
+				if (typeof dValue === "string") {
+					path.setAttribute("d", dValue);
 				}
-				if (attrs.fill) {
-					path.setAttribute("fill", attrs.fill);
+				const fillValue = attrs.fill;
+				if (typeof fillValue === "string") {
+					path.setAttribute("fill", fillValue);
 				}
 				svg.appendChild(path);
-			} else if (tagName === "circle" || (child.$$typeof && child.type === "circle")) {
+			} else if (tagName === "circle" || (childObj.$$typeof && childObj.type === "circle")) {
 				const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 				Object.keys(attrs).forEach(key => {
 					if (key !== "children") {
-						circle.setAttribute(key, attrs[key]);
+						const value = attrs[key];
+						if (typeof value === "string" || typeof value === "number") {
+							circle.setAttribute(key, String(value));
+						}
 					}
 				});
 				svg.appendChild(circle);
-			} else if (tagName === "line" || (child.$$typeof && child.type === "line")) {
+			} else if (tagName === "line" || (childObj.$$typeof && childObj.type === "line")) {
 				const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 				Object.keys(attrs).forEach(key => {
 					if (key !== "children") {
-						line.setAttribute(key, attrs[key]);
+						const value = attrs[key];
+						if (typeof value === "string" || typeof value === "number") {
+							line.setAttribute(key, String(value));
+						}
 					}
 				});
 				svg.appendChild(line);
-			} else if (child.$$typeof && child.type) {
+			} else if (childObj.$$typeof && childObj.type) {
 				// React element - recurse
 				if (attrs.children) {
 					const childChildren = Array.isArray(attrs.children) 
@@ -322,44 +354,58 @@ export class IconPickerModal extends Modal {
 		});
 	}
 	
-	private renderReactLikeIcon(svg: SVGSVGElement, iconData: any): void {
-		if (iconData.props && iconData.props.children) {
-			const children = Array.isArray(iconData.props.children) 
-				? iconData.props.children 
-				: [iconData.props.children];
-			children.forEach((child: any) => {
-				if (child && (child.type || child.tag)) {
-					this.addSvgChild(svg, { 
-						tag: child.type || child.tag, 
-						attrs: child.props || child.attrs || {} 
-					});
+	private renderReactLikeIcon(svg: SVGSVGElement, iconData: unknown): void {
+		if (!iconData || typeof iconData !== "object") return;
+		const iconObj = iconData as Record<string, unknown>;
+		const props = iconObj.props as Record<string, unknown> | undefined;
+		if (props && props.children) {
+			const children = Array.isArray(props.children) 
+				? props.children 
+				: [props.children];
+			children.forEach((child: unknown) => {
+				if (child && typeof child === "object") {
+					const childObj = child as Record<string, unknown>;
+					if (childObj.type || childObj.tag) {
+						this.addSvgChild(svg, { 
+							tag: childObj.type || childObj.tag, 
+							attrs: (childObj.props || childObj.attrs || {}) as Record<string, unknown>
+						});
+					}
 				}
 			});
 		}
 	}
 
-	private addSvgChild(svg: SVGSVGElement, child: any): void {
-		if (!child) return;
+	private addSvgChild(svg: SVGSVGElement, child: unknown): void {
+		if (!child || typeof child !== "object") return;
 		
-		const tagName = child.tag || child.type || "path";
-		const attrs = child.attrs || child.attributes || {};
+		const childObj = child as Record<string, unknown>;
+		const tagName = (childObj.tag || childObj.type || "path") as string;
+		const attrs = (childObj.attrs || childObj.attributes || {}) as Record<string, unknown>;
 		
 		if (tagName === "path") {
 			const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-			if (attrs.d) {
-				path.setAttribute("d", attrs.d);
+			const dValue = attrs.d;
+			if (typeof dValue === "string") {
+				path.setAttribute("d", dValue);
 			}
 			svg.appendChild(path);
 		} else if (tagName === "circle") {
 			const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 			Object.keys(attrs).forEach(key => {
-				circle.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					circle.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(circle);
 		} else if (tagName === "line") {
 			const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 			Object.keys(attrs).forEach(key => {
-				line.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					line.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(line);
 		}

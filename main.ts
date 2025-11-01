@@ -177,7 +177,7 @@ export default class LinkIconPlugin extends Plugin {
 		// Migrate old format (string mappings) to new format (FolderIconMapping)
 		if (loadedData && loadedData.folderIconMap) {
 			const needsMigration = Object.values(loadedData.folderIconMap).some(
-				(value: any) => typeof value === "string"
+				(value: unknown) => typeof value === "string"
 			);
 			
 			if (needsMigration) {
@@ -620,7 +620,7 @@ export default class LinkIconPlugin extends Plugin {
 				decorations = decorations.map(tr.changes);
 				
 				// Find links in the document and add decorations
-				const newDecorations: any[] = [];
+				const newDecorations: Array<ReturnType<ReturnType<typeof Decoration.widget>["range"]>> = [];
 				
 				// Process the document to find links
 				const doc = tr.state.doc;
@@ -646,19 +646,17 @@ export default class LinkIconPlugin extends Plugin {
 							const widget = new LinkIconWidget(iconMapping.icon, iconColor, plugin.settings.iconSize);
 							
 							if (plugin.settings.iconPosition === "before") {
-								newDecorations.push(
-									Decoration.widget({
-										widget,
-										side: -1
-									}).range(start)
-								);
+								const decoration = Decoration.widget({
+									widget,
+									side: -1
+								});
+								newDecorations.push(decoration.range(start));
 							} else {
-								newDecorations.push(
-									Decoration.widget({
-										widget,
-										side: 1
-									}).range(end)
-								);
+								const decoration = Decoration.widget({
+									widget,
+									side: 1
+								});
+								newDecorations.push(decoration.range(end));
 							}
 						}
 					}
@@ -675,22 +673,26 @@ export default class LinkIconPlugin extends Plugin {
 	}
 
 	/**
+	 * Get a Lucide icon by PascalCase name with type safety
+	 */
+	private getLucideIcon(pascalKey: string): unknown {
+		// Use Record type for safer access than 'as any'
+		const icons = LucideIcons as Record<string, unknown>;
+		return icons[pascalKey] || null;
+	}
+
+	/**
 	 * Create an SVG icon element from Lucide
 	 */
 	createIconElement(iconName: string, color?: string): HTMLElement {
 		const iconContainer = document.createElement("span");
 		iconContainer.addClass("link-icon");
-		iconContainer.style.display = "inline-flex";
-		iconContainer.style.alignItems = "center";
-		iconContainer.style.marginLeft = this.settings.iconPosition === "before" ? "0" : "0.25em";
-		iconContainer.style.marginRight = this.settings.iconPosition === "before" ? "0.25em" : "0";
-		iconContainer.style.verticalAlign = "middle";
-		iconContainer.style.lineHeight = "1";
+		iconContainer.addClass(this.settings.iconPosition === "before" ? "link-icon-before" : "link-icon-after");
 
 		try {
 			// Get the icon from Lucide (convert kebab-case to PascalCase)
 			const pascalKey = this.toPascalCase(iconName);
-			const Icon = (LucideIcons as any)[pascalKey];
+			const Icon = this.getLucideIcon(pascalKey);
 			
 			if (!Icon) {
 				throw new Error(`Icon "${iconName}" (${pascalKey}) not found in Lucide`);
@@ -706,10 +708,6 @@ export default class LinkIconPlugin extends Plugin {
 			svg.setAttribute("stroke-width", "2");
 			svg.setAttribute("stroke-linecap", "round");
 			svg.setAttribute("stroke-linejoin", "round");
-			svg.style.display = "block";
-			svg.style.verticalAlign = "baseline";
-			svg.style.position = "relative";
-			svg.style.top = "-1px";
 			
 			// Lucide icon structure: ['svg', {svgAttrs}, [children]]
 			if (!Array.isArray(Icon)) {
@@ -721,7 +719,7 @@ export default class LinkIconPlugin extends Plugin {
 				// Apply SVG attributes (ignore, we set our own)
 				// Process children array
 				const children = Icon[2];
-				children.forEach((child: any) => {
+				children.forEach((child: unknown) => {
 					if (Array.isArray(child) && child.length >= 2) {
 						const tagName = child[0];
 						const attrs = child[1];
@@ -731,7 +729,7 @@ export default class LinkIconPlugin extends Plugin {
 			}
 			// Fallback: array of arrays
 			else if (Icon.length > 0 && Array.isArray(Icon[0])) {
-				Icon.forEach((item: any) => {
+				Icon.forEach((item: unknown) => {
 					if (Array.isArray(item) && item.length >= 2) {
 						const tagName = item[0];
 						const attrs = item[1];
@@ -772,47 +770,64 @@ export default class LinkIconPlugin extends Plugin {
 	/**
 	 * Create an SVG element from tag name and attributes
 	 */
-	private createSvgElement(svg: SVGSVGElement, tagName: string, attrs: any): void {
+	private createSvgElement(svg: SVGSVGElement, tagName: string, attrs: Record<string, unknown>): void {
 		if (!tagName || !attrs) return;
 		
 		if (tagName === "path") {
 			const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-			if (attrs.d) {
-				path.setAttribute("d", attrs.d);
+			const dValue = attrs.d;
+			if (typeof dValue === "string") {
+				path.setAttribute("d", dValue);
 			}
-			if (attrs.fill) {
-				path.setAttribute("fill", attrs.fill);
+			const fillValue = attrs.fill;
+			if (typeof fillValue === "string") {
+				path.setAttribute("fill", fillValue);
 			}
 			svg.appendChild(path);
 		} else if (tagName === "circle") {
 			const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 			Object.keys(attrs).forEach(key => {
-				circle.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					circle.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(circle);
 		} else if (tagName === "line") {
 			const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 			Object.keys(attrs).forEach(key => {
-				line.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					line.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(line);
 		} else if (tagName === "polyline") {
 			const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
 			Object.keys(attrs).forEach(key => {
-				polyline.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					polyline.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(polyline);
 		} else if (tagName === "rect") {
 			const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 			Object.keys(attrs).forEach(key => {
-				rect.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					rect.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(rect);
 		} else {
 			// Generic element
 			const element = document.createElementNS("http://www.w3.org/2000/svg", tagName);
 			Object.keys(attrs).forEach(key => {
-				element.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					element.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(element);
 		}
@@ -866,20 +881,24 @@ class LinkIconWidget extends WidgetType {
 		super();
 	}
 
+	/**
+	 * Get a Lucide icon by PascalCase name with type safety
+	 */
+	private getLucideIcon(pascalKey: string): unknown {
+		// Use Record type for safer access than 'as any'
+		const icons = LucideIcons as Record<string, unknown>;
+		return icons[pascalKey] || null;
+	}
+
 	toDOM() {
 		const iconContainer = document.createElement("span");
 		iconContainer.addClass("link-icon");
-		iconContainer.style.display = "inline-flex";
-		iconContainer.style.alignItems = "center";
-		iconContainer.style.verticalAlign = "middle";
-		iconContainer.style.lineHeight = "1";
-		iconContainer.style.marginLeft = "0.25em";
-		iconContainer.style.marginRight = "0.25em";
+		iconContainer.addClass("link-icon-widget");
 
 		try {
 			// Get the icon from Lucide (convert kebab-case to PascalCase)
 			const pascalKey = this.toPascalCase(this.iconName);
-			const Icon = (LucideIcons as any)[pascalKey];
+			const Icon = this.getLucideIcon(pascalKey);
 			
 			if (!Icon) {
 				return iconContainer;
@@ -895,19 +914,17 @@ class LinkIconWidget extends WidgetType {
 			svg.setAttribute("stroke-width", "2");
 			svg.setAttribute("stroke-linecap", "round");
 			svg.setAttribute("stroke-linejoin", "round");
-			svg.style.display = "block";
-			svg.style.verticalAlign = "baseline";
-			svg.style.position = "relative";
-			svg.style.top = "-1px";
 			
 			// Parse Lucide icon structure
-			if (Icon.length === 3 && Icon[0] === "svg" && typeof Icon[1] === "object" && Array.isArray(Icon[2])) {
+			if (Array.isArray(Icon) && Icon.length === 3 && Icon[0] === "svg" && typeof Icon[1] === "object" && Array.isArray(Icon[2])) {
 				const children = Icon[2];
-				children.forEach((child: any) => {
+				children.forEach((child: unknown) => {
 					if (Array.isArray(child) && child.length >= 2) {
 						const tagName = child[0];
 						const attrs = child[1];
-						this.createSvgElement(svg, tagName, attrs);
+						if (typeof tagName === "string" && attrs && typeof attrs === "object") {
+							this.createSvgElement(svg, tagName, attrs as Record<string, unknown>);
+						}
 					}
 				});
 			}
@@ -929,50 +946,68 @@ class LinkIconWidget extends WidgetType {
 			.join("");
 	}
 
-	private createSvgElement(svg: SVGSVGElement, tagName: string, attrs: any): void {
+	private createSvgElement(svg: SVGSVGElement, tagName: string, attrs: Record<string, unknown>): void {
 		if (!tagName || !attrs) return;
 		
 		if (tagName === "path") {
 			const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-			if (attrs.d) {
-				path.setAttribute("d", attrs.d);
+			const dValue = attrs.d;
+			if (typeof dValue === "string") {
+				path.setAttribute("d", dValue);
 			}
-			if (attrs.fill) {
-				path.setAttribute("fill", attrs.fill);
+			const fillValue = attrs.fill;
+			if (typeof fillValue === "string") {
+				path.setAttribute("fill", fillValue);
 			}
-			if (attrs.stroke) {
-				path.setAttribute("stroke", attrs.stroke);
+			const strokeValue = attrs.stroke;
+			if (typeof strokeValue === "string") {
+				path.setAttribute("stroke", strokeValue);
 			}
 			svg.appendChild(path);
 		} else if (tagName === "circle") {
 			const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
 			Object.keys(attrs).forEach(key => {
-				circle.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					circle.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(circle);
 		} else if (tagName === "line") {
 			const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 			Object.keys(attrs).forEach(key => {
-				line.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					line.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(line);
 		} else if (tagName === "polyline") {
 			const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
 			Object.keys(attrs).forEach(key => {
-				polyline.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					polyline.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(polyline);
 		} else if (tagName === "rect") {
 			const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
 			Object.keys(attrs).forEach(key => {
-				rect.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					rect.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(rect);
 		} else {
 			// Generic element
 			const element = document.createElementNS("http://www.w3.org/2000/svg", tagName);
 			Object.keys(attrs).forEach(key => {
-				element.setAttribute(key, attrs[key]);
+				const value = attrs[key];
+				if (typeof value === "string" || typeof value === "number") {
+					element.setAttribute(key, String(value));
+				}
 			});
 			svg.appendChild(element);
 		}

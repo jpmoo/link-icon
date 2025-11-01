@@ -192,7 +192,7 @@ export class LinkIconSettingTab extends PluginSettingTab {
 						});
 				})
 				.addText((text) => {
-					text.inputEl.style.width = "120px";
+					text.inputEl.addClass("link-icon-color-input");
 					text
 						.setPlaceholder("Default color")
 						.setValue(mapping.color || "")
